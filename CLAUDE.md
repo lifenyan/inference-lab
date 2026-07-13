@@ -7,7 +7,8 @@ Read PROJECT.md (what & why), MILESTONES.md (execution plan M0–M8), LEARNING.m
 - `inference_lab/` — the Python package; **all source code lives here** (loadtest, evals, gateway, common).
 - `docs/` — performance ledger, per-experiment writeups. `report/` — the final optimization report.
 - `experiments/` — one subdir per run: workload spec + server config + environment versions + raw results (JSONL/CSV). Committed (raw model weights never are).
-- `scripts/` — GPU-pod setup/run scripts. `tests/` — pytest suite. `tem/` — untracked scratch files.
+- `scripts/` — GPU-pod setup/run scripts. `tests/` — pytest suite.
+- This repo root is `~/LLM_projects/inference_lab/inference_lab/`; the **outer** folder is an untracked workspace for scratch files (`tem/`, brochures, etc.) — never write project files there.
 
 ## Rules
 
