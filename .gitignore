@@ -29,3 +29,6 @@ tem/
 # Large experiment artifacts are committed selectively; raw model files never
 *.safetensors
 *.gguf
+
+# Local-only planning/personal docs — never published
+ignore/

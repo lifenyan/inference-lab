@@ -1,6 +1,6 @@
 # CLAUDE.md — repo conventions for inference_lab
 
-Read PROJECT.md (what & why), MILESTONES.md (execution plan M0–M8), LEARNING.md (accumulated insights) before starting work.
+Read ignore/PROJECT.md (what & why), ignore/MILESTONES.md (execution plan M0–M8), ignore/LEARNING.md (accumulated insights) before starting work. The `ignore/` folder is local-only (gitignored, never pushed) — it holds the user's personal planning docs; any prompt that references these files at the repo root means this folder.
 
 ## Layout
 
@@ -17,7 +17,7 @@ Read PROJECT.md (what & why), MILESTONES.md (execution plan M0–M8), LEARNING.m
 - **Comparability is sacred**: A/B runs use identical workload specs, seeds, and GPU class.
 - **Local Mac = development only** (no GPU): everything must be testable against the mock server in tests. GPU pods are rented by the user, execution-only; always remind the user to shut pods down and record approximate session cost.
 - Machine-readable output is JSONL via `common.logging.log_event`; never parse log text downstream.
-- End every milestone: update README checklist, append insights to LEARNING.md.
+- End every milestone: update README checklist, append insights to ignore/LEARNING.md.
 
 ## Commands
 
