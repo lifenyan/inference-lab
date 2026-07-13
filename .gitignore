@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment / secrets
+.env
+*.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Project-local temp files (brochures, scratch downloads, etc.)
+tem/
+
+# Large experiment artifacts are committed selectively; raw model files never
+*.safetensors
+*.gguf
