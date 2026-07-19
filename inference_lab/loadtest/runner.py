@@ -16,9 +16,7 @@ Output layout (``experiments/<run-name>/``):
 
 import asyncio
 import datetime
-import importlib.metadata
 import json
-import platform
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -28,6 +26,7 @@ import httpx
 
 from inference_lab.common.config import EndpointConfig
 from inference_lab.common.logging import get_logger, log_event
+from inference_lab.common.versions import collect_versions
 from inference_lab.loadtest.client import run_streaming_request
 from inference_lab.loadtest.models import (
     GeneratedPrompt,
@@ -53,14 +52,7 @@ class SweepConfig:
 
 def _versions() -> dict[str, str]:
     """Library/platform versions recorded for reproducibility."""
-    packages = ("inference-lab", "httpx", "pydantic", "numpy", "tokenizers")
-    versions = {"python": platform.python_version(), "platform": platform.platform()}
-    for pkg in packages:
-        try:
-            versions[pkg] = importlib.metadata.version(pkg)
-        except importlib.metadata.PackageNotFoundError:
-            versions[pkg] = "not-installed"
-    return versions
+    return collect_versions(("inference-lab", "httpx", "pydantic", "numpy", "tokenizers"))
 
 
 async def run_level(

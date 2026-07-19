@@ -42,12 +42,32 @@ class MockServerConfig(BaseModel):
         default=None,
         description="If set, reply with exactly this text (split on spaces) instead of filler",
     )
+    canned_map: dict[str, str] | None = Field(
+        default=None,
+        description="Substring (searched in the last user message) -> canned reply; lets tests "
+        "rig per-question answers for a known eval score. Falls back to canned_text/filler.",
+    )
 
 
-def _reply_tokens(config: MockServerConfig, max_tokens: int | None) -> tuple[list[str], str]:
+def _reply_text(config: MockServerConfig, messages: list[dict[str, Any]]) -> str | None:
+    """Pick the canned reply for this request, if any."""
+    if config.canned_map:
+        last_user = next(
+            (str(m.get("content", "")) for m in reversed(messages) if m.get("role") == "user"), ""
+        )
+        for key, reply in config.canned_map.items():
+            if key in last_user:
+                return reply
+    return config.canned_text
+
+
+def _reply_tokens(
+    config: MockServerConfig, max_tokens: int | None, messages: list[dict[str, Any]]
+) -> tuple[list[str], str]:
     """Return (tokens, finish_reason) for one completion."""
-    if config.canned_text is not None:
-        tokens = [w + " " for w in config.canned_text.split(" ")]
+    text = _reply_text(config, messages)
+    if text is not None:
+        tokens = [w + " " for w in text.split(" ")]
     else:
         tokens = [f"tok{i} " for i in range(config.output_tokens)]
     if max_tokens is not None and len(tokens) > max_tokens:
@@ -83,7 +103,9 @@ def create_app(config: MockServerConfig) -> FastAPI:
         completion_id = f"chatcmpl-mock-{uuid.uuid4().hex[:12]}"
         created = int(time.time())
         model = request.get("model", config.model)
-        tokens, finish_reason = _reply_tokens(config, request.get("max_tokens"))
+        tokens, finish_reason = _reply_tokens(
+            config, request.get("max_tokens"), request.get("messages", [])
+        )
         usage = {
             "prompt_tokens": _estimate_prompt_tokens(request.get("messages", [])),
             "completion_tokens": len(tokens),
@@ -147,9 +169,17 @@ def main() -> None:
     parser.add_argument("--ttft", type=float, default=0.05, help="TTFT delay in seconds")
     parser.add_argument("--tpot", type=float, default=0.01, help="Per-token delay in seconds")
     parser.add_argument("--output-tokens", type=int, default=32, help="Natural reply length")
+    parser.add_argument(
+        "--canned-text", default=None, help="Reply with this text instead of filler"
+    )
     args = parser.parse_args()
 
-    config = MockServerConfig(ttft_s=args.ttft, tpot_s=args.tpot, output_tokens=args.output_tokens)
+    config = MockServerConfig(
+        ttft_s=args.ttft,
+        tpot_s=args.tpot,
+        output_tokens=args.output_tokens,
+        canned_text=args.canned_text,
+    )
     uvicorn.run(create_app(config), host=args.host, port=args.port, log_level="warning")
 
 
