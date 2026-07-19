@@ -10,6 +10,12 @@ Run a sweep (``run`` may be omitted — it is the default subcommand)::
 Re-plot an existing run directory::
 
     python -m inference_lab.loadtest plot experiments/baseline
+
+Overlay several runs on shared axes (A/B comparison, ≤4 runs)::
+
+    python -m inference_lab.loadtest plot-overlay \\
+        fp16=experiments/baseline-fp16 awq=experiments/quant-awq \\
+        --out-dir docs/plots/quantization
 """
 
 import argparse
@@ -20,7 +26,7 @@ from pathlib import Path
 from inference_lab.common.config import EndpointConfig
 from inference_lab.common.logging import get_logger
 from inference_lab.loadtest.models import load_workload
-from inference_lab.loadtest.plots import plot_run
+from inference_lab.loadtest.plots import plot_overlay, plot_run
 from inference_lab.loadtest.runner import SweepConfig, run_sweep
 from inference_lab.loadtest.workload import generate_prompts, load_tokenizer
 
@@ -55,6 +61,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
     plot = sub.add_parser("plot", help="Render plots from an existing run directory")
     plot.add_argument("run_dir", type=Path)
+
+    overlay = sub.add_parser("plot-overlay", help="Overlay ≤4 runs on shared axes (A/B plots)")
+    overlay.add_argument(
+        "runs",
+        nargs="+",
+        metavar="label=run_dir",
+        help="Labeled run directories, in fixed series order (e.g. fp16=experiments/baseline)",
+    )
+    overlay.add_argument("--out-dir", required=True, type=Path, help="Directory for the PNGs")
     return parser
 
 
@@ -91,13 +106,26 @@ def _cmd_plot(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_plot_overlay(args: argparse.Namespace) -> int:
+    labeled_dirs = []
+    for spec in args.runs:
+        label, sep, run_dir = spec.partition("=")
+        if not sep or not label or not run_dir:
+            raise SystemExit(f"expected label=run_dir, got {spec!r}")
+        labeled_dirs.append((label, Path(run_dir)))
+    for path in plot_overlay(labeled_dirs, args.out_dir):
+        logger.info("wrote %s", path)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point; bare flags default to the ``run`` subcommand."""
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0].startswith("-") and argv[0] not in ("-h", "--help"):
         argv.insert(0, "run")
     args = _build_parser().parse_args(argv)
-    return _cmd_run(args) if args.command == "run" else _cmd_plot(args)
+    commands = {"run": _cmd_run, "plot": _cmd_plot, "plot-overlay": _cmd_plot_overlay}
+    return commands[args.command](args)
 
 
 if __name__ == "__main__":
