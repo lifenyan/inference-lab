@@ -44,6 +44,12 @@ class SyntheticWorkload(BaseModel):
         default=128, gt=0, description="Distinct prompts to generate (cycled if a sweep needs more)"
     )
     seed: int = 0
+    ignore_eos: bool = Field(
+        default=False,
+        description="Ask the server to keep generating to max_tokens even past EOS "
+        "(vLLM extension). Synthetic filler prompts often draw short natural replies; "
+        "without this the '256 out' budget is a cap, not the measured shape.",
+    )
 
 
 class ShareGPTWorkload(BaseModel):
@@ -96,6 +102,7 @@ class GeneratedPrompt(BaseModel):
     est_input_tokens: int = Field(
         gt=0, description="Input length measured with the workload tokenizer (client-side estimate)"
     )
+    ignore_eos: bool = False
 
 
 class RequestRecord(BaseModel):

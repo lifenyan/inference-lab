@@ -59,6 +59,19 @@ class TestSynthetic:
         contents = {p.messages[-1]["content"] for p in prompts}
         assert len(contents) == 16  # unique marker defeats cross-request prefix caching
 
+    def test_ignore_eos_flows_from_spec_to_prompt_and_payload(self):
+        from inference_lab.common.config import EndpointConfig
+        from inference_lab.loadtest.client import build_payload
+
+        base = dict(input_tokens=50, output_tokens=16, num_prompts=2, seed=0)
+        endpoint = EndpointConfig(base_url="http://x/v1", model="m")
+        on = generate_synthetic(SyntheticWorkload(ignore_eos=True, **base), TOKENIZER)
+        off = generate_synthetic(SyntheticWorkload(**base), TOKENIZER)
+        assert all(p.ignore_eos for p in on)
+        assert build_payload(endpoint, on[0])["ignore_eos"] is True
+        # default stays off, and the key is absent (not False) for OpenAI compatibility
+        assert "ignore_eos" not in build_payload(endpoint, off[0])
+
     def test_same_seed_reproduces_identical_prompts(self):
         spec = SyntheticWorkload(input_tokens=80, output_tokens=16, num_prompts=4, seed=42)
         a = generate_synthetic(spec, TOKENIZER)

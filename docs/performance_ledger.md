@@ -253,6 +253,30 @@ Any prediction missed by >30% gets a root-cause paragraph in `docs/baseline_resu
 
 ---
 
+## M4 addendum — assumptions revised after measurement (2026-07-19)
+
+The baseline session ([baseline_results.md](baseline_results.md), RTX 4090) confirmed the
+mental model but corrected three assumption values:
+
+1. **Bandwidth efficiency 70–85% → 85–95%** (GDDR6X + current vLLM kernels). Measured batch-1
+   decode hit 88% of the embed-corrected ceiling (63.0 of 71.5 tok/s) — the old band was
+   calibrated on stale folklore and *under*-predicted. §3a bands should be read against the
+   corrected bytes/step (14.1 GB at FP16, footnote³), which is now the headline number.
+2. **Batch decode needs a ~0.85 efficiency factor** on top of the KV-read-growth model. P9
+   predicted +10–20% TPOT degradation at c=64 from KV traffic alone; measured +34%. The gap is
+   per-step scheduler/sampler overhead growing with batch size plus chunked-prefill work
+   interleaved into decode steps — real costs the pure-bandwidth model omits. Shape prediction
+   (gradual, no cliff, no preemption) was correct.
+3. **TTFT predictions now need a prefix-caching qualifier**: vLLM enables automatic prefix
+   caching by default, so any workload with a shared or repeated prefix prefills only the novel
+   suffix. Predicted TTFT scales by (fresh tokens / total tokens) — measured 56 ms at c=1 for
+   ~332 fresh of 540 total, exactly the scaled band at ~53% MFU (assumption held).
+
+Also learned (measurement protocol, not theory): closed-loop window averages understate
+steady-state throughput when requests-per-level < ~4× concurrency — the level ends in a
+partial-concurrency drain. The §5 curve-shape predictions should be compared against
+steady-state estimates, not raw window averages.
+
 ## Sources
 
 - Qwen2.5-7B-Instruct [model card] and [config.json] — parameter counts, architecture, GQA config. Accessed 2026-07-18.

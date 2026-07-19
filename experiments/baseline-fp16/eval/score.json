@@ -1,0 +1,7 @@
+{
+  "task": "gsm8k",
+  "num_questions": 300,
+  "num_correct": 278,
+  "num_errors": 0,
+  "accuracy": 0.9266666666666666
+}

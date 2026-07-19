@@ -86,7 +86,7 @@ against the mock server.
 - [x] **M1** — Performance ledger (theoretical TTFT/throughput limits)
 - [x] **M2** — Load-test harness
 - [x] **M3** — Quality eval runner
-- [ ] **M4** — Baseline deployment & measurement (GPU)
+- [x] **M4** — Baseline deployment & measurement (GPU) — [results](docs/baseline_results.md): 4090 FP16 baseline 63 tok/s @ c=1 (88% of theoretical ceiling), 2.8k tok/s steady-state @ c=64, GSM8K 92.7%, harness cross-validated vs `vllm bench` (TPOT within 2%)
 - [ ] **M5** — Experiment: quantization (GPU)
 - [ ] **M6** — Experiments: prefix caching & batching/KV params (GPU)
 - [ ] **M7** — Optimization report & cost analysis
