@@ -57,12 +57,35 @@ configurable artificial delays: `python -m inference_lab.loadtest.mockserver
 run against it). Closed-loop only; open-loop (Poisson-arrival) generation is
 future work.
 
+## Quality evals (M3)
+
+The quality gate for every optimization experiment: a fixed, seeded GSM8K
+subset (same questions in every run, forever — the subset ids and a content
+hash are recorded in `meta.json`) scored by exact match on the parsed final
+numeric answer, at temperature 0 against any OpenAI-compatible endpoint.
+
+```bash
+python -m inference_lab.evals \
+  --endpoint http://localhost:8000/v1 --model Qwen/Qwen2.5-7B-Instruct \
+  --task gsm8k --num-questions 300 --out experiments/baseline
+
+# Score delta + the exact questions that flipped correct<->wrong:
+python -m inference_lab.evals compare experiments/baseline experiments/quant-awq
+```
+
+Each run writes `experiments/<name>/eval/` with `meta.json`, `questions.jsonl`
+(raw per-question records — the score is recomputable), and `score.json`.
+Failed requests count as wrong (denominators stay comparable) and are reported
+as `num_errors`. The task abstraction takes one class per additional task
+(MMLU is future work). See `experiments/demo-eval-mock-{a,b}/` for sample runs
+against the mock server.
+
 ## Milestones
 
 - [x] **M0** — Repo scaffold & tooling
 - [x] **M1** — Performance ledger (theoretical TTFT/throughput limits)
 - [x] **M2** — Load-test harness
-- [ ] **M3** — Quality eval runner
+- [x] **M3** — Quality eval runner
 - [ ] **M4** — Baseline deployment & measurement (GPU)
 - [ ] **M5** — Experiment: quantization (GPU)
 - [ ] **M6** — Experiments: prefix caching & batching/KV params (GPU)

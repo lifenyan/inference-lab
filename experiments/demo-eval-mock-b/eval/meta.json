@@ -1,0 +1,111 @@
+{
+  "run_name": "demo-eval-mock-b",
+  "endpoint": {
+    "base_url": "http://127.0.0.1:8100/v1",
+    "model": "mock-model"
+  },
+  "task": {
+    "task": "gsm8k",
+    "num_questions": 25,
+    "seed": 0,
+    "few_shot": 5,
+    "max_tokens": 512,
+    "dataset_repo": "openai/gsm8k",
+    "dataset_file": "main/test-00000-of-00001.parquet",
+    "dataset_path": null
+  },
+  "subset": {
+    "size": 25,
+    "hash": "8b2aaceeffae9d17",
+    "ids": [
+      "gsm8k-test-0082",
+      "gsm8k-test-0151",
+      "gsm8k-test-0194",
+      "gsm8k-test-0202",
+      "gsm8k-test-0285",
+      "gsm8k-test-0286",
+      "gsm8k-test-0300",
+      "gsm8k-test-0447",
+      "gsm8k-test-0513",
+      "gsm8k-test-0530",
+      "gsm8k-test-0577",
+      "gsm8k-test-0621",
+      "gsm8k-test-0635",
+      "gsm8k-test-0733",
+      "gsm8k-test-0788",
+      "gsm8k-test-0829",
+      "gsm8k-test-0861",
+      "gsm8k-test-0976",
+      "gsm8k-test-0995",
+      "gsm8k-test-1033",
+      "gsm8k-test-1047",
+      "gsm8k-test-1090",
+      "gsm8k-test-1194",
+      "gsm8k-test-1232",
+      "gsm8k-test-1266"
+    ]
+  },
+  "prompt_prefix": [
+    {
+      "role": "system",
+      "content": "You are solving grade-school math word problems. Reason step by step, then give the final numeric answer on its own last line in the form '#### <answer>'."
+    },
+    {
+      "role": "user",
+      "content": "There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?"
+    },
+    {
+      "role": "assistant",
+      "content": "There are 15 trees originally. After planting there are 21 trees, so the workers planted 21 - 15 = 6 trees.\n#### 6"
+    },
+    {
+      "role": "user",
+      "content": "If there are 3 cars in the parking lot and 2 more cars arrive, how many cars are in the parking lot?"
+    },
+    {
+      "role": "assistant",
+      "content": "There are 3 cars originally and 2 more arrive, so there are 3 + 2 = 5 cars.\n#### 5"
+    },
+    {
+      "role": "user",
+      "content": "Leah had 32 chocolates and her sister had 42. If they ate 35, how many pieces do they have left in total?"
+    },
+    {
+      "role": "assistant",
+      "content": "Together they had 32 + 42 = 74 chocolates. After eating 35, they have 74 - 35 = 39 pieces left.\n#### 39"
+    },
+    {
+      "role": "user",
+      "content": "Jason had 20 lollipops. He gave Denny some lollipops. Now Jason has 12 lollipops. How many lollipops did Jason give to Denny?"
+    },
+    {
+      "role": "assistant",
+      "content": "Jason started with 20 lollipops and has 12 left, so he gave Denny 20 - 12 = 8 lollipops.\n#### 8"
+    },
+    {
+      "role": "user",
+      "content": "Shawn has five toys. For Christmas, he got two toys each from his mom and dad. How many toys does he have now?"
+    },
+    {
+      "role": "assistant",
+      "content": "Shawn started with 5 toys. He got 2 toys from his mom and 2 from his dad, so he has 5 + 2 + 2 = 9 toys.\n#### 9"
+    }
+  ],
+  "runner": {
+    "concurrency": 8,
+    "max_retries": 3,
+    "retry_backoff_s": 0.5,
+    "temperature": 0.0
+  },
+  "started_at": "2026-07-19T08:22:26.746939+00:00",
+  "finished_at": "2026-07-19T08:22:27.330460+00:00",
+  "versions": {
+    "python": "3.13.7",
+    "platform": "macOS-26.5-x86_64-i386-64bit-Mach-O",
+    "inference-lab": "0.1.0",
+    "httpx": "0.28.1",
+    "pydantic": "2.13.4",
+    "pyarrow": "25.0.0",
+    "huggingface-hub": "1.24.0"
+  }
+}
