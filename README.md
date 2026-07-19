@@ -30,7 +30,7 @@ pytest && ruff check .
 ## Milestones
 
 - [x] **M0** — Repo scaffold & tooling
-- [ ] **M1** — Performance ledger (theoretical TTFT/throughput limits)
+- [x] **M1** — Performance ledger (theoretical TTFT/throughput limits)
 - [ ] **M2** — Load-test harness
 - [ ] **M3** — Quality eval runner
 - [ ] **M4** — Baseline deployment & measurement (GPU)
