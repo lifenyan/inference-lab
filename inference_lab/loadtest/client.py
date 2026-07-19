@@ -28,13 +28,16 @@ _SSE_DONE = "[DONE]"
 
 def build_payload(endpoint: EndpointConfig, prompt: GeneratedPrompt) -> dict:
     """Build the chat-completions request body for one prompt."""
-    return {
+    payload = {
         "model": endpoint.model,
         "messages": prompt.messages,
         "max_tokens": prompt.max_tokens,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if prompt.ignore_eos:
+        payload["ignore_eos"] = True  # vLLM extension; OpenAI-incompatible servers may reject it
+    return payload
 
 
 async def run_streaming_request(

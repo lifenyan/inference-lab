@@ -120,7 +120,12 @@ def generate_synthetic(
 
         est = sum(len(tokenizer.encode(m["content"])) for m in messages)
         prompts.append(
-            GeneratedPrompt(messages=messages, max_tokens=spec.output_tokens, est_input_tokens=est)
+            GeneratedPrompt(
+                messages=messages,
+                max_tokens=spec.output_tokens,
+                est_input_tokens=est,
+                ignore_eos=spec.ignore_eos,
+            )
         )
     return prompts
 
