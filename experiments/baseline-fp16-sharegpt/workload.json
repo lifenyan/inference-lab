@@ -1,0 +1,13 @@
+{
+  "mode": "sharegpt",
+  "tokenizer": "Qwen/Qwen2.5-7B-Instruct",
+  "num_prompts": 256,
+  "min_input_tokens": 4,
+  "max_input_tokens": 2048,
+  "min_output_tokens": 4,
+  "max_output_tokens": 1024,
+  "seed": 0,
+  "dataset_repo": "anon8231489123/ShareGPT_Vicuna_unfiltered",
+  "dataset_file": "ShareGPT_V3_unfiltered_cleaned_split.json",
+  "dataset_path": null
+}

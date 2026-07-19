@@ -1,0 +1,30 @@
+{
+  "run_name": "val-ours-fresh-12",
+  "endpoint": {
+    "base_url": "http://localhost:8000/v1",
+    "model": "Qwen/Qwen2.5-7B-Instruct"
+  },
+  "sweep": {
+    "concurrency_levels": [
+      16
+    ],
+    "num_requests": 128,
+    "warmup_requests": 8
+  },
+  "started_at": "2026-07-19T21:16:37.495024+00:00",
+  "finished_at": "2026-07-19T21:17:22.732889+00:00",
+  "versions": {
+    "python": "3.12.3",
+    "platform": "Linux-6.8.0-78-generic-x86_64-with-glibc2.39",
+    "inference-lab": "0.1.0",
+    "httpx": "0.28.1",
+    "pydantic": "2.13.4",
+    "numpy": "2.3.5",
+    "tokenizers": "0.22.2"
+  },
+  "environment": {
+    "approx_session_hours": 4.0,
+    "approx_session_cost_usd": 2.76,
+    "session_note": "single session 2026-07-19 ~17:50-21:50 UTC covering setup + all baseline runs"
+  }
+}
