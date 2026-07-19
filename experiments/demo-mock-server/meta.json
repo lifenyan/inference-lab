@@ -1,0 +1,29 @@
+{
+  "run_name": "demo-mock-server",
+  "endpoint": {
+    "base_url": "http://127.0.0.1:8199/v1",
+    "model": "Qwen/Qwen2.5-7B-Instruct"
+  },
+  "sweep": {
+    "concurrency_levels": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "num_requests": 24,
+    "warmup_requests": 4
+  },
+  "started_at": "2026-07-19T07:33:07.676767+00:00",
+  "finished_at": "2026-07-19T07:33:32.857821+00:00",
+  "versions": {
+    "python": "3.13.7",
+    "platform": "macOS-26.5-x86_64-i386-64bit-Mach-O",
+    "inference-lab": "0.1.0",
+    "httpx": "0.28.1",
+    "pydantic": "2.13.4",
+    "numpy": "2.5.1",
+    "tokenizers": "0.23.1"
+  }
+}

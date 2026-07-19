@@ -27,11 +27,41 @@ pip install -e '.[dev]'
 pytest && ruff check .
 ```
 
+## Load-test harness (M2)
+
+An async closed-loop load tester for any OpenAI-compatible streaming endpoint,
+measuring TTFT, TPOT, throughput, and P50/P90/P99 latency across concurrency levels.
+
+```bash
+# Workload spec (saved into every run dir for reproducibility):
+cat > chat_workload.json <<'EOF'
+{"mode": "synthetic", "input_tokens": 512, "output_tokens": 256,
+ "shared_prefix_tokens": 200, "num_prompts": 128, "seed": 0}
+EOF
+# ({"mode": "sharegpt", "num_prompts": 128, "seed": 0} samples real conversations instead)
+
+python -m inference_lab.loadtest \
+  --endpoint http://localhost:8000/v1 --model Qwen/Qwen2.5-7B-Instruct \
+  --workload chat_workload.json --concurrency 1,4,8,16,32,64 \
+  --out experiments/baseline
+
+python -m inference_lab.loadtest plot experiments/baseline   # re-render PNGs
+```
+
+Each run directory contains `workload.json`, `meta.json` (endpoint, versions,
+timestamps), `requests.jsonl` (raw per-request records — every aggregate is
+recomputable), `summary.json` (per-concurrency aggregates), and three plots.
+For offline development there is a mock OpenAI-compatible server with
+configurable artificial delays: `python -m inference_lab.loadtest.mockserver
+--ttft 0.08 --tpot 0.005` (see `experiments/demo-mock-server/` for a sample
+run against it). Closed-loop only; open-loop (Poisson-arrival) generation is
+future work.
+
 ## Milestones
 
 - [x] **M0** — Repo scaffold & tooling
 - [x] **M1** — Performance ledger (theoretical TTFT/throughput limits)
-- [ ] **M2** — Load-test harness
+- [x] **M2** — Load-test harness
 - [ ] **M3** — Quality eval runner
 - [ ] **M4** — Baseline deployment & measurement (GPU)
 - [ ] **M5** — Experiment: quantization (GPU)
