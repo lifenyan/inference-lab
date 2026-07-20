@@ -1,0 +1,45 @@
+{
+  "run_name": "quant-fp8",
+  "endpoint": {
+    "base_url": "http://localhost:8000/v1",
+    "model": "RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic"
+  },
+  "sweep": {
+    "concurrency_levels": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ],
+    "num_requests": 128,
+    "warmup_requests": 8
+  },
+  "started_at": "2026-07-20T00:21:53.937371+00:00",
+  "finished_at": "2026-07-20T00:35:11.107405+00:00",
+  "versions": {
+    "python": "3.12.3",
+    "platform": "Linux-6.8.0-1035-oracle-x86_64-with-glibc2.39",
+    "inference-lab": "0.1.0",
+    "httpx": "0.28.1",
+    "pydantic": "2.13.4",
+    "numpy": "2.3.5",
+    "tokenizers": "0.22.2"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "vram_mib": 24564,
+    "driver": "570.195.03",
+    "cuda": "12.9",
+    "torch": "2.11.0+cu129",
+    "vllm": "0.25.1+cu129",
+    "model": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+    "pod_usd_per_hr": "0.69",
+    "pod_tier": "secure",
+    "approx_session_hours": 1.25,
+    "approx_session_cost_usd": 0.86,
+    "session_note": "single session 2026-07-19 ~23:35-00:50 UTC: setup + AWQ/GPTQ/FP8 sweeps + evals"
+  }
+}
