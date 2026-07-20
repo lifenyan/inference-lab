@@ -50,6 +50,27 @@ class UpstreamError(Exception):
     """An upstream attempt failed in a way that justifies trying elsewhere."""
 
 
+def prepare_fallback_payload(
+    payload: dict[str, Any], fallback_model: str, served_models: list[str]
+) -> dict[str, Any]:
+    """Adapt a request body for the commercial fallback API.
+
+    - Requests for a locally served model are rewritten to the fallback model.
+    - ``max_tokens`` becomes ``max_completion_tokens``: OpenAI's newer models
+      reject the former (found live in the M8 demo — gpt-5.4-nano 400s on it),
+      while vLLM accepts the standard name.
+    - ``ignore_eos`` (a vLLM extension the loadtest harness uses) is dropped;
+      commercial APIs reject unknown parameters.
+    """
+    adapted = dict(payload)
+    if adapted.get("model") in served_models:
+        adapted["model"] = fallback_model
+    if "max_tokens" in adapted:
+        adapted.setdefault("max_completion_tokens", adapted.pop("max_tokens"))
+    adapted.pop("ignore_eos", None)
+    return adapted
+
+
 def create_app(config: GatewayConfig) -> FastAPI:
     """Build the gateway app for one configuration."""
     fallback_key = config.fallback.resolve_api_key()  # fail fast if the env var is missing
@@ -74,14 +95,15 @@ def create_app(config: GatewayConfig) -> FastAPI:
 
     def build_upstream_request(backend: str, body: dict[str, Any], stream: bool) -> httpx.Request:
         """Build the outbound request, rewriting local-model names for the fallback."""
-        payload = dict(body)
         if backend == LOCAL:
+            payload = dict(body)
             base, key, timeout = config.local.base_url, config.local.api_key, config.local.timeout_s
         else:
+            payload = prepare_fallback_payload(
+                body, config.fallback.model, config.local.served_models
+            )
             base = config.fallback.base_url
             key, timeout = fallback_key, config.fallback.timeout_s
-            if payload.get("model") in config.local.served_models:
-                payload["model"] = config.fallback.model
         if stream:
             payload["stream_options"] = {"include_usage": True}
         client: httpx.AsyncClient = app.state.client

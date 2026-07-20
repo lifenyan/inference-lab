@@ -150,6 +150,33 @@ class TestRouterPrecedence:
         assert router.decide("gpt-other", 10).reason == REASON_MODEL_NOT_LOCAL
 
 
+class TestPrepareFallbackPayload:
+    def _adapt(self, payload: dict) -> dict:
+        from inference_lab.gateway.app import prepare_fallback_payload
+
+        return prepare_fallback_payload(payload, "fallback-model", ["local-model"])
+
+    def test_local_model_is_rewritten_other_models_pass_through(self):
+        assert self._adapt({"model": "local-model"})["model"] == "fallback-model"
+        assert self._adapt({"model": "gpt-other"})["model"] == "gpt-other"
+
+    def test_max_tokens_renamed_for_openai_newer_models(self):
+        adapted = self._adapt({"model": "local-model", "max_tokens": 96})
+        assert "max_tokens" not in adapted
+        assert adapted["max_completion_tokens"] == 96
+
+    def test_existing_max_completion_tokens_wins(self):
+        adapted = self._adapt({"max_tokens": 96, "max_completion_tokens": 32})
+        assert adapted["max_completion_tokens"] == 32
+        assert "max_tokens" not in adapted
+
+    def test_vllm_only_ignore_eos_dropped_and_original_untouched(self):
+        original = {"model": "local-model", "ignore_eos": True, "max_tokens": 8}
+        adapted = self._adapt(original)
+        assert "ignore_eos" not in adapted
+        assert original == {"model": "local-model", "ignore_eos": True, "max_tokens": 8}
+
+
 class TestRequestCost:
     def test_local_cost_is_output_tokens_times_rate(self):
         cost, basis = request_cost(make_config(), LOCAL, input_tokens=500, output_tokens=200)

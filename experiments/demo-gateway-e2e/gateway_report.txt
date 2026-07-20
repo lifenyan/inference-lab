@@ -1,0 +1,18 @@
+Gateway request log — 39 requests (35 ok, 4 errors)
+
+Per backend:
+  backend     req  err  tokens in tokens out   cost USD   latency p50/p99 (s)   TTFT p50/p99 (s)
+  local        22    0     17,830      1,319   0.000082       0.77 /   0.99       0.40 /   0.42
+  fallback     17    4      3,808        875   0.001855       1.15 /   1.69            —       
+
+Routing reasons:
+  default_local              22
+  local_unhealthy             5
+  over_token_threshold        4
+  model_not_local             3
+  local_error_fallback        3
+  circuit_open                2
+
+Cost totals by pricing basis (a cost is only meaningful with its assumption):
+  $0.001855 over 17 requests — fallback gpt-5.4-nano list prices $0.2/1M in + $1.25/1M out (fetched 2026-07-19)
+  $0.000082 over 22 requests — local $0.062/1M output tokens (tuned GPTQ config (max-num-seqs 128, gpu-memory-utilization 0.90) at FULL utilization of one $0.69/hr RTX 4090 pod, fresh chat-shape traffic, steady-state accounting (report section 7.1); ~25x higher at c=1 (M5), 1.65x lower on cache-warm repeated traffic (M6))
