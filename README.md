@@ -46,6 +46,10 @@ python -m inference_lab.loadtest \
   --out experiments/baseline
 
 python -m inference_lab.loadtest plot experiments/baseline   # re-render PNGs
+
+python -m inference_lab.loadtest plot-overlay \
+  fp16=experiments/baseline-fp16 awq=experiments/quant-awq \
+  --out-dir experiments/quant-overlay   # A/B runs on shared axes (≤4)
 ```
 
 Each run directory contains `workload.json`, `meta.json` (endpoint, versions,
@@ -87,7 +91,7 @@ against the mock server.
 - [x] **M2** — Load-test harness
 - [x] **M3** — Quality eval runner
 - [x] **M4** — Baseline deployment & measurement (GPU) — [results](docs/baseline_results.md): 4090 FP16 baseline 63 tok/s @ c=1 (88% of theoretical ceiling), 2.8k tok/s steady-state @ c=64, GSM8K 92.7%, harness cross-validated vs `vllm bench` (TPOT within 2%)
-- [ ] **M5** — Experiment: quantization (GPU)
+- [x] **M5** — Experiment: quantization (GPU) — [results](docs/experiment_quantization.md): GPTQ/AWQ 4-bit = 2.6× batch-1 decode, 1.5× steady-state @ c=64, 2.45× KV headroom, GSM8K −2.3 to −2.7 pts (flips are interpretation errors, churn FP8 11 < GPTQ 15 < AWQ 20); FP8 true W8A8 on Ada verified; $/1M out: $0.045 (GPTQ) vs $0.069 (FP16)
 - [ ] **M6** — Experiments: prefix caching & batching/KV params (GPU)
 - [ ] **M7** — Optimization report & cost analysis
 - [ ] **M8** — Gateway & end-to-end demo

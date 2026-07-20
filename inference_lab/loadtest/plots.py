@@ -4,12 +4,20 @@
 - latency vs throughput — the fundamental serving trade-off curve
 - TTFT percentiles vs concurrency — what users feel as load grows
 
+Plus overlay variants of the same curves that draw several runs on shared axes
+(A/B experiments: baseline vs quantization variants, M5+).
+
 Style notes: percentile families (p50/p90/p99) are ordered magnitudes of one
 metric, so they use an ordinal one-hue ramp (light→dark blue) instead of
 unrelated hues — the ordering survives colorblind viewing, and each line is
-direct-labeled at its end so identity never rides on color alone.
+direct-labeled at its end so identity never rides on color alone. Overlays
+compare *runs* (identity, not magnitude), so they use a categorical palette
+instead: at most four series, hues assigned in fixed caller order, every line
+direct-labeled at its end in addition to the legend (two of the four hues sit
+below 3:1 contrast on this surface — labels carry identity, not color alone).
 """
 
+from collections.abc import Callable
 from pathlib import Path
 
 import matplotlib
@@ -34,6 +42,9 @@ _AXIS = "#c3c2b7"
 _P50 = "#86b6ef"
 _P90 = "#2a78d6"
 _P99 = "#104281"
+# Categorical hues for run overlays (validated all-pairs on this surface, ≤4 series).
+# Assigned in the caller's fixed order — for M5: baseline, awq, gptq, fp8.
+_CATEGORICAL = ("#2a78d6", "#008300", "#e87ba4", "#eda100")
 
 _LINE_KW = {"linewidth": 2, "marker": "o", "markersize": 6, "markeredgewidth": 1.5}
 
@@ -162,5 +173,102 @@ def plot_run(run_dir: Path) -> list[Path]:
     ):
         path = run_dir / name
         fn(summaries, path)
+        outputs.append(path)
+    return outputs
+
+
+LabeledRuns = list[tuple[str, list[LevelSummary]]]
+
+
+def _overlay_lines(
+    runs: LabeledRuns,
+    title: str,
+    xlabel: str,
+    ylabel: str,
+    xy: Callable[[LevelSummary], tuple[float, float | None]],
+) -> tuple[Figure, Axes]:
+    """One line per run on shared axes; fixed hue per position, direct-labeled ends."""
+    if len(runs) > len(_CATEGORICAL):
+        raise ValueError(f"overlay supports at most {len(_CATEGORICAL)} runs, got {len(runs)}")
+    fig, ax = _new_axes(title, xlabel, ylabel)
+    ends: list[tuple[float, str]] = []
+    x_end = 0.0
+    for (label, summaries), color in zip(runs, _CATEGORICAL, strict=False):
+        pts = [xy(s) for s in summaries]
+        pts = [(x, y) for x, y in pts if y is not None]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        ax.plot(xs, ys, color=color, markeredgecolor=_SURFACE, label=label, **_LINE_KW)
+        ends.append((ys[-1], label))
+        x_end = max(x_end, xs[-1])
+    ax.set_ylim(bottom=0)
+    _label_line_ends(ax, x_end, ends)
+    ax.legend(frameon=False, labelcolor=_INK_SECONDARY, fontsize=9)
+    return fig, ax
+
+
+def plot_overlay_throughput(runs: LabeledRuns, path: Path) -> None:
+    """Throughput vs concurrency, one line per run (window-average tok/s)."""
+    fig, ax = _overlay_lines(
+        runs,
+        "Throughput vs concurrency",
+        "concurrency (closed-loop workers)",
+        "output tokens / s (window avg)",
+        lambda s: (s.concurrency, s.throughput_tok_s),
+    )
+    _concurrency_axis(ax, [s.concurrency for s in runs[0][1]])
+    _save(fig, path)
+
+
+def plot_overlay_tpot(runs: LabeledRuns, path: Path) -> None:
+    """TPOT p50 vs concurrency — the per-user decode-speed signature."""
+    fig, ax = _overlay_lines(
+        runs,
+        "TPOT p50 vs concurrency",
+        "concurrency (closed-loop workers)",
+        "time per output token, p50 (ms)",
+        lambda s: (s.concurrency, s.tpot_s.p50 * 1000 if s.tpot_s else None),
+    )
+    _concurrency_axis(ax, [s.concurrency for s in runs[0][1]])
+    _save(fig, path)
+
+
+def plot_overlay_ttft(runs: LabeledRuns, path: Path) -> None:
+    """TTFT p50 vs concurrency, one line per run."""
+    fig, ax = _overlay_lines(
+        runs,
+        "TTFT p50 vs concurrency",
+        "concurrency (closed-loop workers)",
+        "time to first token, p50 (ms)",
+        lambda s: (s.concurrency, s.ttft_s.p50 * 1000 if s.ttft_s else None),
+    )
+    _concurrency_axis(ax, [s.concurrency for s in runs[0][1]])
+    _save(fig, path)
+
+
+def plot_overlay_latency_throughput(runs: LabeledRuns, path: Path) -> None:
+    """The trade-off frontier: latency p99 vs throughput, one curve per run."""
+    fig, _ = _overlay_lines(
+        runs,
+        "Latency p99 vs throughput (each point: one concurrency level)",
+        "output tokens / s (window avg)",
+        "request latency, p99 (s)",
+        lambda s: (s.throughput_tok_s, s.latency_s.p99 if s.latency_s else None),
+    )
+    _save(fig, path)
+
+
+def plot_overlay(labeled_dirs: list[tuple[str, Path]], out_dir: Path) -> list[Path]:
+    """Render the four overlay plots from several run directories; return written paths."""
+    runs: LabeledRuns = [(label, load_summaries(d)) for label, d in labeled_dirs]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    outputs = []
+    for fn, name in (
+        (plot_overlay_throughput, "overlay_throughput_vs_concurrency.png"),
+        (plot_overlay_tpot, "overlay_tpot_p50_vs_concurrency.png"),
+        (plot_overlay_ttft, "overlay_ttft_p50_vs_concurrency.png"),
+        (plot_overlay_latency_throughput, "overlay_latency_p99_vs_throughput.png"),
+    ):
+        path = out_dir / name
+        fn(runs, path)
         outputs.append(path)
     return outputs

@@ -247,7 +247,7 @@ earlier; peak throughput gain should be well under 3×.
 - [ ] P8: no preemption events during the ≤64 sweep (check vLLM logs/metrics)
 - [ ] P9: TPOT degradation is gradual, not cliff-shaped
 - [ ] P12 (stretch): long-context run triggers preemption near predicted concurrency
-- [ ] P10/P11: deferred to M5 (quantization experiments)
+- [x] P10/P11: settled in M5 — both confirmed (see the M5 addendum below and `experiment_quantization.md`)
 
 Any prediction missed by >30% gets a root-cause paragraph in `docs/baseline_results.md`.
 
@@ -276,6 +276,31 @@ Also learned (measurement protocol, not theory): closed-loop window averages und
 steady-state throughput when requests-per-level < ~4× concurrency — the level ends in a
 partial-concurrency drain. The §5 curve-shape predictions should be compared against
 steady-state estimates, not raw window averages.
+
+## M5 addendum — quantization predictions settled (2026-07-19)
+
+The quantization session ([experiment_quantization.md](experiment_quantization.md), same
+4090/vLLM stack) closed P10 and P11:
+
+1. **P10 ✅ — 4-bit batch-1 decode speedup measured 2.63× (predicted 2.5–3×).** TPOT
+   15.87 → 6.0 ms for both AWQ and GPTQ via the Marlin kernel; §3a's bytes-read model holds
+   (~14.1 → ~4.5 GB/step: quantized blocks + fp16 lm_head).
+2. **P11 ✅ — peak-throughput gain 1.47–1.51× steady-state at c=64, far under the batch-1
+   2.6×.** The compute wall moved left as predicted (§5): 4-bit TPOT degrades +105% from
+   c=1→64 vs FP16's +34%. Batching amortizes exactly the resource quantization shrinks.
+3. **§4's KV-headroom claim: measured 2.45× (predicted ~2.8×).** Pool 6.2 → 15.2 GiB;
+   the ledger's naive estimate ignored fixed activation/CUDA-graph overhead that doesn't
+   shrink with the weights. FP8 gives 1.94×.
+4. **New assumption for FP8 on Ada (not in the original ledger): real W8A8 runs at ~68% of
+   its bytes-ceiling** (measured 90.7 tok/s vs ~133 predicted from ~7.6 GB/step) — dynamic
+   per-token activation quantization overhead + a less-tuned Cutlass path on SM 8.9. 4-bit
+   Marlin achieves ~74% of its ceiling; both below the fp16 kernels' 88%. Quantized-kernel
+   efficiency ≠ fp16 kernel efficiency; carry separate bands.
+5. **Prefill corollary now explicit: quantization buys decode, never TTFT** — prefill is
+   compute-bound (§2) and dequant adds work, so TTFT was flat-to-worse at c=1 (56 → 61–65 ms)
+   and ~2.5× worse at c=64 under closed loop (faster decode → faster request turnover →
+   proportionally more prefill arrivals). Any TTFT prediction for a quantized config should
+   start from the FP16 prefill number, not scale it down.
 
 ## Sources
 
