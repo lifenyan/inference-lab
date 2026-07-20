@@ -1,5 +1,10 @@
 # inference_lab
 
+> **📊 Key deliverable: [the optimization report](report/optimization_report.md)** —
+> what quantization, prefix caching, and batching/KV tuning each buy in speed, dollars,
+> and quality on a self-hosted Qwen2.5-7B, with a workload→configuration decision map.
+> One-page version: [report/SUMMARY.md](report/SUMMARY.md).
+
 Self-hosted LLM inference benchmarking and optimization lab. For a chosen open-source model (Qwen/Llama, 7B–8B) served with vLLM on rented cloud GPUs, this project measures — with a self-built load-testing harness — how each serving optimization (**AWQ/GPTQ/FP8 quantization, prefix caching, continuous-batching parameters, KV-cache memory allocation, speculative decoding**) trades speed and $/1M-token cost against answer quality, and turns the results into a data-backed decision map a team running these models could actually use. A thin OpenAI-compatible gateway (routing + per-request cost/latency logging) fronts the tuned deployment.
 
 Planning and learning docs (PROJECT.md, MILESTONES.md, LEARNING.md) are kept in the local-only `ignore/` folder and are not published with this repo.
@@ -93,5 +98,5 @@ against the mock server.
 - [x] **M4** — Baseline deployment & measurement (GPU) — [results](docs/baseline_results.md): 4090 FP16 baseline 63 tok/s @ c=1 (88% of theoretical ceiling), 2.8k tok/s steady-state @ c=64, GSM8K 92.7%, harness cross-validated vs `vllm bench` (TPOT within 2%)
 - [x] **M5** — Experiment: quantization (GPU) — [results](docs/experiment_quantization.md): GPTQ/AWQ 4-bit = 2.6× batch-1 decode, 1.5× steady-state @ c=64, 2.45× KV headroom, GSM8K −2.3 to −2.7 pts (flips are interpretation errors, churn FP8 11 < GPTQ 15 < AWQ 20); FP8 true W8A8 on Ada verified; $/1M out: $0.045 (GPTQ) vs $0.069 (FP16)
 - [x] **M6** — Experiments: prefix caching & batching/KV params (GPU) — [results](docs/experiment_caching_batching.md): prefix caching cuts RAG-shape TTFT p99 −82% and lifts throughput 2.6× at c=64 (hit rate = prefix share); KV preemption wall lands exactly at pool ÷ tokens-per-seq (0 preempts at 0.88×wall, 37 at 1.10×) and APC defers it ~3.9×; max-num-seqs is an admission valve (where load waits), throughput saturates by 128; util 0.95 OOMs on 24 GB
-- [ ] **M7** — Optimization report & cost analysis
+- [x] **M7** — Optimization report & cost analysis — [report](report/optimization_report.md) · [1-page summary](report/SUMMARY.md): every experiment synthesized into a decision map; $/1M-token per config ($0.045–0.232 measured); break-even vs commercial APIs (self-hosting wins above ~29% sustained utilization vs a same-model hosted API, prices dated 2026-07-19); all figures regenerated reproducibly by `scripts/make_report_plots.py`
 - [ ] **M8** — Gateway & end-to-end demo
