@@ -1,0 +1,36 @@
+{
+  "run_name": "c64",
+  "endpoint": {
+    "base_url": "http://localhost:8000/v1",
+    "model": "Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4"
+  },
+  "sweep": {
+    "concurrency_levels": [
+      64
+    ],
+    "num_requests": 256,
+    "warmup_requests": 8
+  },
+  "started_at": "2026-07-20T02:30:17.527513+00:00",
+  "finished_at": "2026-07-20T02:30:47.368164+00:00",
+  "versions": {
+    "python": "3.12.3",
+    "platform": "Linux-6.8.0-90-generic-x86_64-with-glibc2.39",
+    "inference-lab": "0.1.0",
+    "httpx": "0.28.1",
+    "pydantic": "2.13.4",
+    "numpy": "2.3.5",
+    "tokenizers": "0.22.2"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "vram_mib": 24564,
+    "driver": "570.195.03",
+    "cuda": "12.9",
+    "torch": "2.11.0+cu129",
+    "vllm": "0.25.1+cu129",
+    "model": "Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4",
+    "pod_usd_per_hr": "0.69",
+    "pod_tier": "secure"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "mode": "synthetic",
+  "tokenizer": "Qwen/Qwen2.5-7B-Instruct",
+  "input_tokens": 1740,
+  "output_tokens": 256,
+  "shared_prefix_tokens": 0,
+  "num_prompts": 392,
+  "seed": 6301,
+  "ignore_eos": true
+}

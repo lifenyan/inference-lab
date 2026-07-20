@@ -246,7 +246,7 @@ earlier; peak throughput gain should be well under 3×.
 - [ ] P7: near-linear scaling region exists (1→8)
 - [ ] P8: no preemption events during the ≤64 sweep (check vLLM logs/metrics)
 - [ ] P9: TPOT degradation is gradual, not cliff-shaped
-- [ ] P12 (stretch): long-context run triggers preemption near predicted concurrency
+- [x] P12: settled in M6 — confirmed (preemption onset straddles the computed wall; see the M6 addendum below and `experiment_caching_batching.md`)
 - [x] P10/P11: settled in M5 — both confirmed (see the M5 addendum below and `experiment_quantization.md`)
 
 Any prediction missed by >30% gets a root-cause paragraph in `docs/baseline_results.md`.
@@ -301,6 +301,43 @@ The quantization session ([experiment_quantization.md](experiment_quantization.m
    and ~2.5× worse at c=64 under closed loop (faster decode → faster request turnover →
    proportionally more prefill arrivals). Any TTFT prediction for a quantized config should
    start from the FP16 prefill number, not scale it down.
+
+## M6 addendum — caching/batching predictions settled (2026-07-19)
+
+The scheduling/memory session ([experiment_caching_batching.md](experiment_caching_batching.md),
+same 4090/vLLM stack, GPTQ-Int4 base) closed P12 and sharpened three mechanisms:
+
+1. **P12 ✅ — the KV wall is where §4's arithmetic puts it.** With unique ~2,008-token
+   sequences and pool 291,168 tokens (util 0.90) the computed wall is ≈145 concurrent;
+   measured `vllm:num_preemptions_total` = 0 at c=128 (0.88×), 37 at c=160 (1.10×), 47 at
+   c=192 (1.32×), with §5's predicted thrash signature (latency p99 57 → 92 s, throughput
+   *down* 920 → 838 tok/s — preempted sequences re-prefill their whole context). Shrinking
+   the pool (util 0.80, wall ≈123) flips c=128 from 0 to 8 preemptions: the wall moves with
+   the pool, linearly, as §4 says.
+2. **The §4 arithmetic must count *unique* KV per sequence, not context length.** With
+   prefix caching on (vLLM default), concurrent sequences share prefix blocks: a 1,500-token
+   shared prefix costs the pool ~1,500 tokens *once*, so the same offered load that preempts
+   with unique contexts (845 tok/s, 37 preemptions at c=160) runs clean at 3,195 tok/s with
+   a shared prefix. APC is a KV-*capacity* multiplier (~3.9× on that shape), not just a TTFT
+   optimization.
+3. **Prefix caching's TTFT win scales with the prefix's share of prefill, and only that**:
+   measured hit rates equal the prefix share (28% chat / 86% RAG / ~3% control), TTFT p99
+   −22% / −82% / 0% respectively at c=64. Combined with the M5 corollary (quantization
+   worsens loaded TTFT), the levers pair cleanly: 4-bit for decode bytes, APC for prefill
+   FLOPs.
+4. **`max-num-seqs` is an admission valve, not a speed knob** (§5's "three walls" refined):
+   on the 512/256 shape throughput saturates by mns≈128 (compute wall N*≈60 on 4-bit already
+   passed), and the knob only chooses where excess load waits — outside the engine (TTFT p99
+   15.3 s, TPOT 12.6 ms at mns=32/c=160) or inside it (TTFT 7.9 s, TPOT 53 ms at mns=256).
+   Median end-to-end latency is nearly invariant (13.3–17.4 s): conservation of waiting.
+5. **Long-context decode is KV-bandwidth-bound below the wall**: throughput falls 976 → 920
+   tok/s from c=96 → 128 on 2k-token unique contexts (each step reads every live sequence's
+   KV), unlike the 512/256 shape where it rises to saturation. §3a's "bytes per step" must
+   include KV bytes once `c × context × 57 KB` rivals the 4.5 GB weight read — at 2k tokens
+   that's c ≈ 40.
+6. **Operational bound: `gpu-memory-utilization` 0.95 fails to start on the 24 GB card**
+   (CUDA-graph capture OOM; 0.90 is the practical ceiling with this stack), and far from the
+   wall 0.80 vs 0.90 changes throughput by 0.5% — the pool is capacity, not speed.
 
 ## Sources
 
