@@ -1,0 +1,14 @@
+— local backend is down (expect: local_error_fallback until the
+  circuit opens, then circuit_open — no more local connect attempts)
+  failure[0] json                    200 fallback  local_unhealthy        latency   1.39s
+  failure[1] json                    200 fallback  local_unhealthy        latency   1.15s
+  failure[2] json                    200 fallback  local_unhealthy        latency   1.17s
+  failure[3] json                    200 fallback  local_unhealthy        latency   0.93s
+  failure[4] json                    200 fallback  local_unhealthy        latency   0.89s
+— local backend is down (expect: local_error_fallback until the
+  circuit opens, then circuit_open — no more local connect attempts)
+  failure[0] json                    200 fallback  local_error_fallback   latency   1.28s
+  failure[1] json                    200 fallback  local_error_fallback   latency   1.12s
+  failure[2] json                    200 fallback  local_error_fallback   latency   1.25s
+  failure[3] json                    200 fallback  circuit_open           latency   1.07s
+  failure[4] json                    200 fallback  circuit_open           latency   1.02s

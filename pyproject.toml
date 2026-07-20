@@ -18,6 +18,8 @@ dependencies = [
     "tokenizers>=0.19",
     "huggingface_hub>=0.23",
     "pyarrow>=16",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
@@ -25,8 +27,6 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
-    "fastapi>=0.111",
-    "uvicorn>=0.30",
 ]
 
 [tool.setuptools.packages.find]

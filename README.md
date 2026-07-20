@@ -4,10 +4,46 @@
 > what quantization, prefix caching, and batching/KV tuning each buy in speed, dollars,
 > and quality on a self-hosted Qwen2.5-7B, with a workload→configuration decision map.
 > One-page version: [report/SUMMARY.md](report/SUMMARY.md).
+>
+> **Headline results:** 4-bit GPTQ = **2.6× faster decode** at −2.3 GSM8K pts ·
+> cheapest measured tokens **$0.045–0.062 per 1M output** · prefix caching =
+> **−82% TTFT p99** and 2.6× throughput on RAG-shape traffic · self-hosting beats a
+> same-model hosted API above **~29% sustained utilization**.
 
 Self-hosted LLM inference benchmarking and optimization lab. For a chosen open-source model (Qwen/Llama, 7B–8B) served with vLLM on rented cloud GPUs, this project measures — with a self-built load-testing harness — how each serving optimization (**AWQ/GPTQ/FP8 quantization, prefix caching, continuous-batching parameters, KV-cache memory allocation, speculative decoding**) trades speed and $/1M-token cost against answer quality, and turns the results into a data-backed decision map a team running these models could actually use. A thin OpenAI-compatible gateway (routing + per-request cost/latency logging) fronts the tuned deployment.
 
 Planning and learning docs (PROJECT.md, MILESTONES.md, LEARNING.md) are kept in the local-only `ignore/` folder and are not published with this repo.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    client([client<br/>OpenAI SDK / curl])
+    subgraph serving [Serving path M8]
+        gw["gateway :8080<br/>routing · circuit breaker ·<br/>cost/latency JSONL log"]
+        vllm["vLLM on GPU pod (RTX 4090)<br/>Qwen2.5-7B GPTQ-Int4<br/>max-num-seqs 128 · util 0.90 · APC on"]
+        api["commercial API fallback<br/>(gpt-5.4-nano)"]
+    end
+    subgraph loop [Experiment loop M2–M7]
+        harness["load-test harness<br/>TTFT/TPOT/P99 sweeps"]
+        evals["eval runner<br/>seeded GSM8K subset"]
+        runs[("experiments/<br/>raw runs")]
+        rpt[["optimization report<br/>+ decision map"]]
+    end
+    client --> gw
+    gw -- "default: local" --> vllm
+    gw -- "over token threshold ·<br/>unknown model · local down" --> api
+    gw -. "gateway_report.py" .-> runs
+    harness --> vllm
+    evals --> vllm
+    harness --> runs
+    evals --> runs
+    runs --> rpt
+    rpt -- "recommended config" --> vllm
+```
+
+The experiment loop produced the report; the report's recommended configuration is what
+the serving path deploys.
 
 ## Repo layout
 
@@ -89,6 +125,31 @@ as `num_errors`. The task abstraction takes one class per additional task
 (MMLU is future work). See `experiments/demo-eval-mock-{a,b}/` for sample runs
 against the mock server.
 
+## Gateway (M8)
+
+A thin OpenAI-compatible gateway fronting the tuned vLLM deployment, with a
+commercial-API fallback. Config-driven (endpoints, models, prices, thresholds —
+nothing hardcoded; see [`configs/gateway.example.json`](configs/gateway.example.json)),
+streaming and non-streaming, `/health`, and one JSONL log event per request.
+
+```bash
+export OPENAI_API_KEY=...   # fallback key: named in config by env var, never stored
+python -m inference_lab.gateway --config configs/gateway.example.json --port 8080
+
+python scripts/gateway_report.py gateway_log.jsonl   # cost/latency/routing summary
+```
+
+Routing is deliberately simple and explainable — fallback when the estimated prompt
+tokens exceed a threshold (the KV-wall guard), the requested model isn't served
+locally, or the local backend is unhealthy (health probe + a circuit breaker on
+consecutive failures). Every response names its backend and route reason in
+`x-gateway-*` headers; every log line carries exact token counts, TTFT, latency, and
+a cost **with the assumption it rests on** (local $/token is utilization- and
+regime-dependent — report §7). Known limitation, documented in
+`inference_lab/gateway/routing.py`: the threshold counts raw prompt tokens, but what
+is actually expensive locally is *unique* (non-cached) tokens — shared-prefix long
+prompts measured as the cheapest traffic to serve (M6).
+
 ## Milestones
 
 - [x] **M0** — Repo scaffold & tooling
@@ -99,4 +160,4 @@ against the mock server.
 - [x] **M5** — Experiment: quantization (GPU) — [results](docs/experiment_quantization.md): GPTQ/AWQ 4-bit = 2.6× batch-1 decode, 1.5× steady-state @ c=64, 2.45× KV headroom, GSM8K −2.3 to −2.7 pts (flips are interpretation errors, churn FP8 11 < GPTQ 15 < AWQ 20); FP8 true W8A8 on Ada verified; $/1M out: $0.045 (GPTQ) vs $0.069 (FP16)
 - [x] **M6** — Experiments: prefix caching & batching/KV params (GPU) — [results](docs/experiment_caching_batching.md): prefix caching cuts RAG-shape TTFT p99 −82% and lifts throughput 2.6× at c=64 (hit rate = prefix share); KV preemption wall lands exactly at pool ÷ tokens-per-seq (0 preempts at 0.88×wall, 37 at 1.10×) and APC defers it ~3.9×; max-num-seqs is an admission valve (where load waits), throughput saturates by 128; util 0.95 OOMs on 24 GB
 - [x] **M7** — Optimization report & cost analysis — [report](report/optimization_report.md) · [1-page summary](report/SUMMARY.md): every experiment synthesized into a decision map; $/1M-token per config ($0.045–0.232 measured); break-even vs commercial APIs (self-hosting wins above ~29% sustained utilization vs a same-model hosted API, prices dated 2026-07-19); all figures regenerated reproducibly by `scripts/make_report_plots.py`
-- [ ] **M8** — Gateway & end-to-end demo
+- [x] **M8** — Gateway & end-to-end demo — [demo](docs/demo_e2e.md): OpenAI-compatible gateway routing between the vLLM pod (report's recommended config) and a commercial fallback, demonstrated live: all six routing reasons in one log, 92% prefix-cache hit rate on shared-prefix traffic, zero client-visible failures during a forced local outage, every logged cost paired with its utilization/regime assumption

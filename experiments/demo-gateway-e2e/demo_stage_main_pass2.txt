@@ -1,0 +1,19 @@
+— short chat requests (expect: local / default_local)
+  chat[0] stream                     200 local     default_local          latency   1.01s  ttft  0.43s
+  chat[1] json                       200 local     default_local          latency   0.97s
+  chat[2] stream                     200 local     default_local          latency   0.77s  ttft  0.20s
+— shared-system-prefix batch (expect: local; TTFT drops after request 0
+  as the ~1.2k-token prefix lands in the prefix cache)
+  prefix[0] stream                   200 local     default_local          latency   0.45s  ttft  0.20s
+  prefix[1] stream                   200 local     default_local          latency   0.59s  ttft  0.39s
+  prefix[2] stream                   200 local     default_local          latency   0.63s  ttft  0.41s
+  prefix[3] stream                   200 local     default_local          latency   0.75s  ttft  0.40s
+  prefix[4] stream                   200 local     default_local          latency   0.78s  ttft  0.40s
+  prefix[5] stream                   200 local     default_local          latency   0.64s  ttft  0.40s
+  prefix[6] stream                   200 local     default_local          latency   0.78s  ttft  0.40s
+  prefix[7] stream                   200 local     default_local          latency   0.48s  ttft  0.21s
+— unique long-context requests (expect: fallback / over_token_threshold)
+  long[0] json                       200 fallback  over_token_threshold   latency   1.71s
+  long[1] json                       200 fallback  over_token_threshold   latency   1.61s
+— model not served locally (expect: fallback / model_not_local)
+  other-model json                   200 fallback  model_not_local        latency   0.79s

@@ -1,0 +1,25 @@
+{
+  "local": {
+    "base_url": "http://213.173.109.77:10875/v1",
+    "served_models": ["Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4"],
+    "timeout_s": 180.0,
+    "usd_per_1m_output_tokens": 0.062,
+    "cost_assumption": "tuned GPTQ config (max-num-seqs 128, gpu-memory-utilization 0.90) at FULL utilization of one $0.69/hr RTX 4090 pod, fresh chat-shape traffic, steady-state accounting (report section 7.1); ~25x higher at c=1 (M5), 1.65x lower on cache-warm repeated traffic (M6)"
+  },
+  "fallback": {
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-5.4-nano",
+    "api_key_env": "OPENAI_API_KEY",
+    "timeout_s": 120.0,
+    "usd_per_1m_input_tokens": 0.2,
+    "usd_per_1m_output_tokens": 1.25,
+    "prices_fetched_on": "2026-07-19"
+  },
+  "routing": {
+    "prompt_token_threshold": 1600,
+    "health_check_interval_s": 5.0,
+    "circuit_breaker_failures": 3,
+    "circuit_breaker_open_s": 30.0
+  },
+  "log_path": "experiments/demo-gateway-e2e/gateway_log.jsonl"
+}
