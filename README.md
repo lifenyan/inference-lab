@@ -12,27 +12,36 @@
 
 Self-hosted LLM inference benchmarking and optimization lab. For a chosen open-source model (Qwen/Llama, 7B–8B) served with vLLM on rented cloud GPUs, this project measures — with a self-built load-testing harness — how each serving optimization (**AWQ/GPTQ/FP8 quantization, prefix caching, continuous-batching parameters, KV-cache memory allocation, speculative decoding**) trades speed and $/1M-token cost against answer quality, and turns the results into a data-backed decision map a team running these models could actually use. A thin OpenAI-compatible gateway (routing + per-request cost/latency logging) fronts the tuned deployment.
 
-Planning and learning docs (PROJECT.md, MILESTONES.md, LEARNING.md) are kept in the local-only `ignore/` folder and are not published with this repo.
-
 ## Architecture
 
 ```mermaid
 flowchart LR
-    client([client<br/>OpenAI SDK / curl])
+    client(["`client
+    OpenAI SDK / curl`"])
     subgraph serving [Serving path M8]
-        gw["gateway :8080<br/>routing · circuit breaker ·<br/>cost/latency JSONL log"]
-        vllm["vLLM on GPU pod (RTX 4090)<br/>Qwen2.5-7B GPTQ-Int4<br/>max-num-seqs 128 · util 0.90 · APC on"]
-        api["commercial API fallback<br/>(gpt-5.4-nano)"]
+        gw["`gateway :8080
+        routing · circuit breaker
+        cost/latency JSONL log`"]
+        vllm["`vLLM on GPU pod (RTX 4090)
+        Qwen2.5-7B GPTQ-Int4
+        max-num-seqs 128 · util 0.90 · APC on`"]
+        api["`commercial API fallback
+        (gpt-5.4-nano)`"]
     end
     subgraph loop [Experiment loop M2–M7]
-        harness["load-test harness<br/>TTFT/TPOT/P99 sweeps"]
-        evals["eval runner<br/>seeded GSM8K subset"]
-        runs[("experiments/<br/>raw runs")]
-        rpt[["optimization report<br/>+ decision map"]]
+        harness["`load-test harness
+        TTFT/TPOT/P99 sweeps`"]
+        evals["`eval runner
+        seeded GSM8K subset`"]
+        runs[("`experiments/
+        raw runs`")]
+        rpt[["`optimization report
+        + decision map`"]]
     end
     client --> gw
     gw -- "default: local" --> vllm
-    gw -- "over token threshold ·<br/>unknown model · local down" --> api
+    gw -- "`over token threshold
+    unknown model · local down`" --> api
     gw -. "gateway_report.py" .-> runs
     harness --> vllm
     evals --> vllm
