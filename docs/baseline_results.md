@@ -64,14 +64,15 @@ runs that touch prefill must either use fresh seeds per run or pin caching expli
 
 ## Predicted vs measured (the ledger's day in court)
 
-Single-GPU session (4090 only), so the A10 rows (P1) and cross-GPU ratios (P3, P5) stay open;
-P10–P12 are deferred by design.
+The ledger is 4090-native (its original A10 rows and cross-GPU ratio predictions were removed
+when the project standardized on one GPU — see the ledger's provenance note); P10–P12 are
+deferred by design.
 
 | # | Prediction (4090, FP16, 512/256) | Predicted | Measured | Verdict |
 |---|---|---|---|---|
 | P2 | Decode speed, c=1 | 46–56 tok/s (ceiling 66) | **63.0 tok/s** (1/TPOT) | ✅ but **above** the band — 95% of the naive ceiling, 88% of the embed-corrected one (14.1 GB/step → 71.5 tok/s). GDDR6X + vLLM kernels are simply better than the assumed 70–85% bandwidth efficiency. |
-| P4′ | TTFT, c=1 | 75–150 ms (512 fresh tokens) | **56 ms** at ~332 fresh tokens (prefix cached) | ✅ cache-adjusted: scaling the band by 332/512 gives 49–98 ms; 56 ms sits there at ~53% MFU, matching the assumed 40–60%. |
-| P6′ | Throughput @ c=64 (A10 band ×1.68 bandwidth ratio) | 2,520–3,190 tok/s | window avg **1,983**; steady-state **2,795** | ✅ steady-state in band; the window number is a measurement-protocol artifact (see ¹), not a server property. |
+| P4 | TTFT, c=1 | 75–150 ms (512 fresh tokens) | **56 ms** at ~332 fresh tokens (prefix cached) | ✅ cache-adjusted: scaling the band by 332/512 gives 49–98 ms; 56 ms sits there at ~53% MFU, matching the assumed 40–60%. |
+| P6 | Throughput @ c=64 | 2,520–3,190 tok/s | window avg **1,983**; steady-state **2,795** | ✅ steady-state in band; the window number is a measurement-protocol artifact (see ¹), not a server property. |
 | P7 | Scaling 1→8 | ≥6× | **7.64×** | ✅ near-linear, batching amortizes weight reads as predicted. |
 | P8 | No knee ≤64; KV wall ~120 | no preemption | **0 preemptions**, no knee, errors 0/952 | ✅ `vllm:num_preemptions_total = 0`. |
 | P9 | TPOT degradation 1→64 | 10–20% | **+34%** (15.87→21.32 ms) | ❌ missed — root-cause below. |

@@ -1,4 +1,4 @@
-# Performance Ledger — Qwen2.5-7B-Instruct on A10 24GB & RTX 4090 24GB
+# Performance Ledger — Qwen2.5-7B-Instruct on RTX 4090 24GB
 
 > **Phase 0 deliverable.** Theoretical performance predictions derived from first principles,
 > written *before* touching a GPU. Every measurement in M4+ gets judged against this document:
@@ -6,6 +6,14 @@
 > means something is wrong with either the deployment or the prediction — both are findings.
 >
 > All numbers are sourced (see [Sources](#sources)) or derived with the work shown. GB = 10⁹ bytes.
+>
+> **Provenance note (2026-08-08):** as written in M1 this ledger covered two candidate GPUs
+> (NVIDIA A10 and RTX 4090). The project standardized on the RTX 4090 before M4 (cheaper per
+> unit of performance on RunPod, FP8-capable for M6, and one GPU class keeps all A/B runs
+> comparable) and the A10 was never rented, so the A10 working sections were removed for
+> clarity — the original two-GPU version is in git history (commits up to PR #4). The three
+> A10-dependent predictions (P1, P3, P5) are kept in §6 but struck through as untestable;
+> all other predictions are unchanged from M1 and keep their original numbers.
 
 ## The cast
 
@@ -22,21 +30,21 @@
 | Max context | 32,768 tokens |
 | Vocab | 152,064, embeddings untied (embed_tokens + lm_head each ≈ 0.545B params) |
 
-**GPUs** (from NVIDIA's [A10 datasheet] and [Ada whitepaper]):
+**GPU — RTX 4090** (from NVIDIA's [Ada whitepaper]):
 
-| Spec | A10 | RTX 4090 | 4090 ÷ A10 |
-|---|---|---|---|
-| Memory | 24 GB GDDR6 | 24 GB GDDR6X | 1.0× |
-| Memory bandwidth | 600 GB/s | 1008 GB/s | **1.68×** |
-| FP16 Tensor Core, dense | 125 TFLOPS | 165.2 TFLOPS¹ | **1.32×** |
-| TDP | 150 W | 450 W |
+| Spec | RTX 4090 |
+|---|---|
+| Memory | 24 GB GDDR6X |
+| Memory bandwidth | 1008 GB/s |
+| FP16 Tensor Core, dense | 165.2 TFLOPS¹ |
+| TDP | 450 W |
 
 ¹ FP16 with FP32 accumulate, which is what inference frameworks use. Marketing materials
 sometimes quote 330 TFLOPS — that's either 2:4 sparsity or FP16 accumulate; neither applies here.
 
-Those two ratios are the punchline of the whole GPU comparison: the 4090 buys **1.68× more
-bandwidth** and **1.32× more compute** but **zero extra memory**. Which ratio shows up in a
-measurement tells you which resource that measurement was limited by.
+The two numbers that matter are **1008 GB/s** and **165.2 TFLOPS**: every ceiling below is one
+of them divided by something. Which of the two limits a given measurement is the diagnostic
+question this whole document turns on.
 
 ---
 
@@ -93,11 +101,11 @@ The formal tool is *arithmetic intensity* (FLOPs performed per byte read) vs the
 point* (FLOPs it can do per byte it can fetch):
 
 ```
-A10 ridge point = 125 TFLOPS / 600 GB/s ≈ 208 FLOPs/byte   (4090: ≈ 164)
+RTX 4090 ridge point = 165.2 TFLOPS / 1008 GB/s ≈ 164 FLOPs/byte
 ```
 
 - Decode, batch 1: ~2 FLOPs per parameter per token, 2 bytes read per parameter (FP16)
-  → intensity ≈ **1 FLOP/byte**. 208× below the ridge → tensor cores idle ~99.5% of a decode
+  → intensity ≈ **1 FLOP/byte**. 164× below the ridge → tensor cores idle ~99.4% of a decode
   step; bandwidth is everything.
 - Prefill, 512 tokens: the same weight read serves 512 tokens → intensity ≈ **512× higher**,
   above the ridge → compute-bound.
@@ -116,21 +124,19 @@ At batch 1, a decode step can't finish faster than the time to stream the weight
 memory bus (KV read is negligible at short contexts: a 768-token sequence adds only ~44 MB
 against 15.2 GB of weights):
 
-| Precision | Bytes/token | A10 (600 GB/s) | RTX 4090 (1008 GB/s) |
-|---|---|---|---|
-| FP16 | 15.2 GB | **39 tok/s** | **66 tok/s** |
-| INT8/FP8 | 7.6 GB | 79 tok/s | 132 tok/s |
-| 4-bit (~5.6 GB) | ~5.1 GB³ | ~118 tok/s | ~198 tok/s |
+| Precision | Bytes/token | RTX 4090 (1008 GB/s) |
+|---|---|---|
+| FP16 | 15.2 GB | **66 tok/s** |
+| INT8/FP8 | 7.6 GB | 132 tok/s |
+| 4-bit (~5.6 GB) | ~5.1 GB³ | ~198 tok/s |
 
 ³ Decode reads the quantized blocks + FP16 lm_head (~1.1 GB) but not embed_tokens (a lookup
-fetches one row). Same correction applied consistently would make FP16 ≈ 14.1 GB → 42 tok/s;
-I keep the uncorrected FP16 number as the headline since the difference (~7%) is within
-measurement noise.
+fetches one row). The same correction applied to FP16 gives ≈ 14.1 GB → **71.5 tok/s** — since
+M4 this corrected figure is the headline ceiling (see the addendum).
 
-These are *ceilings*: real kernels don't achieve 100% of peak bandwidth. Prediction: **70–85%
-of these numbers** in M4 (i.e. A10 FP16 ≈ 28–33 tok/s). Note the expected 4090/A10 ratio is
-the **bandwidth ratio 1.68×**, not the compute ratio — a directly testable signature of
-decode being memory-bound.
+These are *ceilings*: real kernels don't achieve 100% of peak bandwidth. Prediction as made in
+M1: **70–85% of these numbers** (i.e. FP16 ≈ 46–56 tok/s). M4 measured above that band; the
+addendum revises the efficiency assumption to 85–95%.
 
 ### 3b. TTFT for a 512-token prompt = prefill FLOPs ÷ compute
 
@@ -142,18 +148,16 @@ Prefill FLOPs = 2 × 7.61e9 × 512 ≈ 7.8 TFLOP
 
 | GPU | Ideal (100% MFU) | Realistic (~50% MFU⁴) |
 |---|---|---|
-| A10 | 7.8 / 125 = **62 ms** | ~125 ms |
 | RTX 4090 | 7.8 / 165.2 = **47 ms** | ~95 ms |
 
 ⁴ MFU = model FLOPs utilization. 512 tokens is a smallish matmul; 40–60% of peak tensor
 throughput is typical. Measured TTFT also includes tokenization, scheduling, and one decode
-step, so predict **100–200 ms (A10)** / **75–150 ms (4090)** at concurrency 1. Here the
-expected 4090/A10 ratio is the **compute ratio 1.32×** — the mirror-image signature of §3a.
+step, so predict **75–150 ms** at concurrency 1.
 
 ### 3c. Sanity crosscheck
 
-At batch 1 the GPU decodes 39 tok/s while capable of 125 TFLOPS — it is doing
-`39 × 15.2 GFLOP ≈ 0.6 TFLOP/s`, i.e. **0.5% of peak compute**. That idle 99.5% is exactly the
+At batch 1 the GPU decodes 66 tok/s while capable of 165.2 TFLOPS — it is doing
+`66 × 15.2 GFLOP ≈ 1.0 TFLOP/s`, i.e. **0.6% of peak compute**. That idle 99.4% is exactly the
 headroom continuous batching exists to harvest, and why throughput in §5 can scale ~linearly
 for a long time.
 
@@ -161,9 +165,7 @@ for a long time.
 
 ## 4. Concurrency ceiling — how many requests fit in the KV pool
 
-Max concurrent sequences = KV budget ÷ (57 KB × context length). Using the KV budgets from §1a
-(both GPUs have 24 GB, so **this table is identical for both** — the 4090 buys speed, not
-capacity):
+Max concurrent sequences = KV budget ÷ (57 KB × context length), using the KV budgets from §1a:
 
 | Context length | FP16 wts (5.4 GB KV) | INT8/FP8 wts (13 GB) | 4-bit wts (15 GB) |
 |---|---|---|---|
@@ -193,22 +195,22 @@ baseline sweep should *not* hit the KV wall.
 — linear at first, then a knee, then flat (or slightly down under preemption thrash).
 
 Why linear: decode at batch N reads the weights *once* per step for all N sequences, so N
-requests cost barely more than one. Each user still gets ~39 tok/s while aggregate throughput
+requests cost barely more than one. Each user still gets ~66 tok/s while aggregate throughput
 multiplies — batching is nearly free until one of three walls:
 
 1. **Compute wall**: per-step FLOPs grow with N until decode itself goes compute-bound at
-   `N* ≈ ridge_point × bytes_per_param ÷ 2` ≈ **208** on A10 for FP16. Quantization moves this
-   wall *left* (4-bit: N* ≈ 60) — quantized decode goes compute-bound at much smaller batches,
+   `N* ≈ ridge_point × bytes_per_param ÷ 2` ≈ **164** for FP16. Quantization moves this wall
+   *left* (4-bit: N* ≈ 48) — quantized decode goes compute-bound at much smaller batches,
    so **4-bit helps less at high concurrency than its batch-1 speedup suggests**.
 2. **KV-capacity wall**: ~120 concurrent for our workload at FP16 (§4).
 3. **KV-bandwidth drag** (before either wall): the KV cache read per step grows with N —
    at N=64, 64 × ~640 avg tokens × 57 KB ≈ 2.3 GB/step vs 15.2 GB of weights → steps ~15%
    slower; per-user TPOT degrades gradually even in the "linear" region.
 
-**Peak throughput estimate (A10, FP16, 512/256 workload)**: near the KV wall (N≈120), step time
-≈ (15.2 GB weights + 4.4 GB KV) / 600 GB/s ≈ 33 ms → ideal ≈ 3,700 tok/s; at 60–70% efficiency
-**≈ 2,200–2,600 tok/s** output. At the M4 sweep max of N=64: ideal ≈ 2,190 tok/s, predict
-**≈ 1,500–1,900 tok/s**. 4090 scales by ~1.68× until its (earlier, ridge ≈ 164) compute wall.
+**Peak throughput estimate (FP16, 512/256 workload)**: near the KV wall (N≈120), step time
+≈ (15.2 GB weights + 4.4 GB KV) / 1008 GB/s ≈ 19.4 ms → ideal ≈ 6,200 tok/s; at 60–70%
+efficiency **≈ 3,700–4,300 tok/s** output. At the M4 sweep max of N=64: ideal ≈ 3,680 tok/s,
+predict **≈ 2,520–3,190 tok/s**.
 
 **Latency-vs-throughput** should be L-shaped: flat latency while throughput climbs (the free
 region), then latency rising steeply for little extra throughput past the knee. The knee is
@@ -222,32 +224,40 @@ earlier; peak throughput gain should be well under 3×.
 
 ## 6. Predictions table
 
-| # | Metric (workload: 512 in / 256 out) | Prediction | Rests on |
+All rows assume the 512 in / 256 out workload on the RTX 4090.
+
+> **Note on the struck-through rows:** P1, P3, and P5 required an A10 (P1 directly; P3/P5 are
+> cross-GPU ratio diagnostics needing measurements on *both* cards). The project standardized
+> on the RTX 4090 before M4 and no A10 was ever rented, so these three were never testable.
+> They are kept, crossed out, as a record of what the M1 arithmetic predicted — the ratio
+> diagnostics in particular (a bandwidth-bound metric should scale by the bandwidth ratio, a
+> compute-bound one by the compute ratio) remain a good idea for anyone with two GPU classes.
+
+| # | Metric | Prediction | Rests on |
 |---|---|---|---|
-| P1 | A10 FP16 decode, concurrency 1 | 28–33 tok/s (ceiling 39) | 600 GB/s BW, 15.2 GB weights, 70–85% BW efficiency |
-| P2 | 4090 FP16 decode, concurrency 1 | 46–56 tok/s (ceiling 66) | same, 1008 GB/s |
-| P3 | 4090/A10 decode ratio | ≈ 1.68× (bandwidth ratio) | decode is memory-bound |
-| P4 | A10 TTFT @ 512-token prompt, conc. 1 | 100–200 ms (ideal 62) | 7.8 TFLOP prefill, ~40–60% MFU |
-| P5 | 4090/A10 TTFT ratio | ≈ 1.32× faster (compute ratio) | prefill is compute-bound |
-| P6 | A10 FP16 throughput @ conc. 64 | 1,500–1,900 tok/s | step-time model incl. KV read traffic |
+| ~~P1~~ | ~~A10 FP16 decode, concurrency 1~~ | ~~28–33 tok/s (ceiling 39)~~ | ~~600 GB/s BW, 15.2 GB weights, 70–85% BW efficiency~~ |
+| P2 | FP16 decode, concurrency 1 | 46–56 tok/s (ceiling 66) | 1008 GB/s BW, 15.2 GB weights, 70–85% BW efficiency |
+| ~~P3~~ | ~~4090/A10 decode ratio~~ | ~~≈ 1.68× (bandwidth ratio)~~ | ~~decode is memory-bound~~ |
+| P4 | TTFT @ 512-token prompt, conc. 1 | 75–150 ms (ideal 47) | 7.8 TFLOP prefill, ~40–60% MFU |
+| ~~P5~~ | ~~4090/A10 TTFT ratio~~ | ~~≈ 1.32× faster (compute ratio)~~ | ~~prefill is compute-bound~~ |
+| P6 | FP16 throughput @ conc. 64 | 2,520–3,190 tok/s | step-time model incl. KV read traffic |
 | P7 | Throughput conc. 1→8 scaling | ≥ 6× (near-linear) | batching amortizes weight reads |
-| P8 | Knee location, A10 FP16, this workload | none before 64; KV wall ~120 | 5.4 GB KV pool ÷ 44 MB/req |
+| P8 | Knee location, FP16, this workload | none before 64; KV wall ~120 | 5.4 GB KV pool ÷ 44 MB/req |
 | P9 | Per-user TPOT degradation 1→64 | ~10–20% slower | KV read grows to ~2.3 GB/step at N=64 |
 | P10 | 4-bit batch-1 decode speedup | ~2.5–3× vs FP16 | bytes/token 15.2 → ~5.1 GB |
-| P11 | 4-bit peak-throughput speedup | < 2× (much less than P10) | compute wall moves to N* ≈ 60 |
+| P11 | 4-bit peak-throughput speedup | < 2× (much less than P10) | compute wall moves to N* ≈ 48 |
 | P12 | Max concurrency @ 4k ctx, FP16 | ~23 before preemption | 57 KB/token KV, 5.4 GB pool |
 
 ### Predictions to verify in M4
 
-- [ ] P1/P2: batch-1 decode speed within predicted band; compute % of theoretical ceiling
-- [ ] P3/P5: if both GPUs tested — decode ratio tracks bandwidth, TTFT ratio tracks compute
-- [ ] P4: TTFT at concurrency 1 in band; if far off, profile where the extra time goes
-- [ ] P6: throughput at concurrency 64 in band
-- [ ] P7: near-linear scaling region exists (1→8)
-- [ ] P8: no preemption events during the ≤64 sweep (check vLLM logs/metrics)
-- [ ] P9: TPOT degradation is gradual, not cliff-shaped
-- [x] P12: settled in M6 — confirmed (preemption onset straddles the computed wall; see the M6 addendum below and `experiment_caching_batching.md`)
-- [x] P10/P11: settled in M5 — both confirmed (see the M5 addendum below and `experiment_quantization.md`)
+- [x] P2: batch-1 decode speed within predicted band; compute % of theoretical ceiling — **above band** (63.0 tok/s = 88% of corrected ceiling; see addendum)
+- [x] P4: TTFT at concurrency 1 in band — **in band** after prefix-cache adjustment (56 ms at ~332 fresh tokens)
+- [x] P6: throughput at concurrency 64 in band — **in band** on steady-state accounting (~2,795 tok/s)
+- [x] P7: near-linear scaling region exists (1→8) — **7.64×**
+- [x] P8: no preemption events during the ≤64 sweep — **0 preemptions**
+- [x] P9: TPOT degradation gradual, not cliff-shaped — **gradual but +34%, band missed**; see addendum
+- [ ] P12 (stretch): long-context run triggers preemption near predicted concurrency — not run in M4
+- [ ] P10/P11: deferred to M5 (quantization experiments)
 
 Any prediction missed by >30% gets a root-cause paragraph in `docs/baseline_results.md`.
 
@@ -277,72 +287,9 @@ steady-state throughput when requests-per-level < ~4× concurrency — the level
 partial-concurrency drain. The §5 curve-shape predictions should be compared against
 steady-state estimates, not raw window averages.
 
-## M5 addendum — quantization predictions settled (2026-07-19)
-
-The quantization session ([experiment_quantization.md](experiment_quantization.md), same
-4090/vLLM stack) closed P10 and P11:
-
-1. **P10 ✅ — 4-bit batch-1 decode speedup measured 2.63× (predicted 2.5–3×).** TPOT
-   15.87 → 6.0 ms for both AWQ and GPTQ via the Marlin kernel; §3a's bytes-read model holds
-   (~14.1 → ~4.5 GB/step: quantized blocks + fp16 lm_head).
-2. **P11 ✅ — peak-throughput gain 1.47–1.51× steady-state at c=64, far under the batch-1
-   2.6×.** The compute wall moved left as predicted (§5): 4-bit TPOT degrades +105% from
-   c=1→64 vs FP16's +34%. Batching amortizes exactly the resource quantization shrinks.
-3. **§4's KV-headroom claim: measured 2.45× (predicted ~2.8×).** Pool 6.2 → 15.2 GiB;
-   the ledger's naive estimate ignored fixed activation/CUDA-graph overhead that doesn't
-   shrink with the weights. FP8 gives 1.94×.
-4. **New assumption for FP8 on Ada (not in the original ledger): real W8A8 runs at ~68% of
-   its bytes-ceiling** (measured 90.7 tok/s vs ~133 predicted from ~7.6 GB/step) — dynamic
-   per-token activation quantization overhead + a less-tuned Cutlass path on SM 8.9. 4-bit
-   Marlin achieves ~74% of its ceiling; both below the fp16 kernels' 88%. Quantized-kernel
-   efficiency ≠ fp16 kernel efficiency; carry separate bands.
-5. **Prefill corollary now explicit: quantization buys decode, never TTFT** — prefill is
-   compute-bound (§2) and dequant adds work, so TTFT was flat-to-worse at c=1 (56 → 61–65 ms)
-   and ~2.5× worse at c=64 under closed loop (faster decode → faster request turnover →
-   proportionally more prefill arrivals). Any TTFT prediction for a quantized config should
-   start from the FP16 prefill number, not scale it down.
-
-## M6 addendum — caching/batching predictions settled (2026-07-19)
-
-The scheduling/memory session ([experiment_caching_batching.md](experiment_caching_batching.md),
-same 4090/vLLM stack, GPTQ-Int4 base) closed P12 and sharpened three mechanisms:
-
-1. **P12 ✅ — the KV wall is where §4's arithmetic puts it.** With unique ~2,008-token
-   sequences and pool 291,168 tokens (util 0.90) the computed wall is ≈145 concurrent;
-   measured `vllm:num_preemptions_total` = 0 at c=128 (0.88×), 37 at c=160 (1.10×), 47 at
-   c=192 (1.32×), with §5's predicted thrash signature (latency p99 57 → 92 s, throughput
-   *down* 920 → 838 tok/s — preempted sequences re-prefill their whole context). Shrinking
-   the pool (util 0.80, wall ≈123) flips c=128 from 0 to 8 preemptions: the wall moves with
-   the pool, linearly, as §4 says.
-2. **The §4 arithmetic must count *unique* KV per sequence, not context length.** With
-   prefix caching on (vLLM default), concurrent sequences share prefix blocks: a 1,500-token
-   shared prefix costs the pool ~1,500 tokens *once*, so the same offered load that preempts
-   with unique contexts (845 tok/s, 37 preemptions at c=160) runs clean at 3,195 tok/s with
-   a shared prefix. APC is a KV-*capacity* multiplier (~3.9× on that shape), not just a TTFT
-   optimization.
-3. **Prefix caching's TTFT win scales with the prefix's share of prefill, and only that**:
-   measured hit rates equal the prefix share (28% chat / 86% RAG / ~3% control), TTFT p99
-   −22% / −82% / 0% respectively at c=64. Combined with the M5 corollary (quantization
-   worsens loaded TTFT), the levers pair cleanly: 4-bit for decode bytes, APC for prefill
-   FLOPs.
-4. **`max-num-seqs` is an admission valve, not a speed knob** (§5's "three walls" refined):
-   on the 512/256 shape throughput saturates by mns≈128 (compute wall N*≈60 on 4-bit already
-   passed), and the knob only chooses where excess load waits — outside the engine (TTFT p99
-   15.3 s, TPOT 12.6 ms at mns=32/c=160) or inside it (TTFT 7.9 s, TPOT 53 ms at mns=256).
-   Median end-to-end latency is nearly invariant (13.3–17.4 s): conservation of waiting.
-5. **Long-context decode is KV-bandwidth-bound below the wall**: throughput falls 976 → 920
-   tok/s from c=96 → 128 on 2k-token unique contexts (each step reads every live sequence's
-   KV), unlike the 512/256 shape where it rises to saturation. §3a's "bytes per step" must
-   include KV bytes once `c × context × 57 KB` rivals the 4.5 GB weight read — at 2k tokens
-   that's c ≈ 40.
-6. **Operational bound: `gpu-memory-utilization` 0.95 fails to start on the 24 GB card**
-   (CUDA-graph capture OOM; 0.90 is the practical ceiling with this stack), and far from the
-   wall 0.80 vs 0.90 changes throughput by 0.5% — the pool is capacity, not speed.
-
 ## Sources
 
 - Qwen2.5-7B-Instruct [model card] and [config.json] — parameter counts, architecture, GQA config. Accessed 2026-07-18.
-- NVIDIA [A10 datasheet] — 24 GB GDDR6, 600 GB/s, 125 TFLOPS FP16 Tensor (dense).
 - NVIDIA [Ada whitepaper] (RTX 4090) — 24 GB GDDR6X, 1008 GB/s, 165.2 TFLOPS FP16 Tensor w/ FP32 accumulate (dense).
 - Kwon et al., [Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180), SOSP 2023 — block-based KV allocation, preemption behavior.
 - kipply, [Transformer Inference Arithmetic](https://kipp.ly/transformer-inference-arithmetic/) — the 2·params FLOPs/token rule, KV cache formulas, bandwidth-vs-compute framing.
@@ -350,5 +297,4 @@ same 4090/vLLM stack, GPTQ-Int4 base) closed P12 and sharpened three mechanisms:
 
 [config.json]: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/config.json
 [model card]: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct
-[A10 datasheet]: https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a10/pdf/a10-datasheet.pdf
 [Ada whitepaper]: https://images.nvidia.com/aem-dam/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf
