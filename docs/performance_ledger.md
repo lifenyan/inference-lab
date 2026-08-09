@@ -10,10 +10,10 @@
 > **Provenance note (2026-08-08):** as written in M1 this ledger covered two candidate GPUs
 > (NVIDIA A10 and RTX 4090). The project standardized on the RTX 4090 before M4 (cheaper per
 > unit of performance on RunPod, FP8-capable for M6, and one GPU class keeps all A/B runs
-> comparable) and the A10 was never rented, so the A10 material and the cross-GPU ratio
-> predictions (P1, P3, P5) were removed for clarity — the original two-GPU version is in git
-> history (commits up to PR #4). The remaining predictions are unchanged from M1 and keep
-> their original numbers (hence the gaps in the P-numbering).
+> comparable) and the A10 was never rented, so the A10 working sections were removed for
+> clarity — the original two-GPU version is in git history (commits up to PR #4). The three
+> A10-dependent predictions (P1, P3, P5) are kept in §6 but struck through as untestable;
+> all other predictions are unchanged from M1 and keep their original numbers.
 
 ## The cast
 
@@ -224,13 +224,22 @@ earlier; peak throughput gain should be well under 3×.
 
 ## 6. Predictions table
 
-All rows assume the 512 in / 256 out workload on the RTX 4090. (P1, P3, P5 were A10 and
-cross-GPU-ratio rows, removed per the provenance note; numbering otherwise unchanged from M1.)
+All rows assume the 512 in / 256 out workload on the RTX 4090.
+
+> **Note on the struck-through rows:** P1, P3, and P5 required an A10 (P1 directly; P3/P5 are
+> cross-GPU ratio diagnostics needing measurements on *both* cards). The project standardized
+> on the RTX 4090 before M4 and no A10 was ever rented, so these three were never testable.
+> They are kept, crossed out, as a record of what the M1 arithmetic predicted — the ratio
+> diagnostics in particular (a bandwidth-bound metric should scale by the bandwidth ratio, a
+> compute-bound one by the compute ratio) remain a good idea for anyone with two GPU classes.
 
 | # | Metric | Prediction | Rests on |
 |---|---|---|---|
+| ~~P1~~ | ~~A10 FP16 decode, concurrency 1~~ | ~~28–33 tok/s (ceiling 39)~~ | ~~600 GB/s BW, 15.2 GB weights, 70–85% BW efficiency~~ |
 | P2 | FP16 decode, concurrency 1 | 46–56 tok/s (ceiling 66) | 1008 GB/s BW, 15.2 GB weights, 70–85% BW efficiency |
+| ~~P3~~ | ~~4090/A10 decode ratio~~ | ~~≈ 1.68× (bandwidth ratio)~~ | ~~decode is memory-bound~~ |
 | P4 | TTFT @ 512-token prompt, conc. 1 | 75–150 ms (ideal 47) | 7.8 TFLOP prefill, ~40–60% MFU |
+| ~~P5~~ | ~~4090/A10 TTFT ratio~~ | ~~≈ 1.32× faster (compute ratio)~~ | ~~prefill is compute-bound~~ |
 | P6 | FP16 throughput @ conc. 64 | 2,520–3,190 tok/s | step-time model incl. KV read traffic |
 | P7 | Throughput conc. 1→8 scaling | ≥ 6× (near-linear) | batching amortizes weight reads |
 | P8 | Knee location, FP16, this workload | none before 64; KV wall ~120 | 5.4 GB KV pool ÷ 44 MB/req |
