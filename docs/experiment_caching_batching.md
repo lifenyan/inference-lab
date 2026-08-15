@@ -150,7 +150,7 @@ c ∈ {64, 128, 160}:
 
 - **Throughput saturates at `max-num-seqs` ≈ 128**: 32 caps the active batch hard
   (−17% throughput), 64 recovers most of it, 128 and 256 are statistically identical —
-  once the batch is big enough to amortize weight reads (ledger: compute wall N* ≈ 60 on
+  once the batch is big enough to amortize weight reads (ledger: compute wall N* ≈ 48 on
   the 4-bit base), admitting more sequences adds no throughput on this shape.
 - **The knob decides *where* excess load waits, not whether it waits.** Below the cap,
   extra requests queue outside the engine: TTFT explodes (mns=32: p99 15.3 s at c=160) while

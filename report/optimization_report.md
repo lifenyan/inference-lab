@@ -205,7 +205,7 @@ compute on Ada (Cutlass kernel, verified in the serve log), not a weight-only fa
   amortizes weight reads across the batch — exactly the resource quantization saves —
   so the two levers overlap rather than stack. The 4-bit TPOT curve bends up past c≈16
   (+105% from c=1→64 vs FP16's +34%): the compute wall arriving early, as the ledger's
-  N*≈60 predicted.
+  N*≈48 predicted.
 - **Quantization does not buy TTFT — under load it costs TTFT.** Prefill is
   compute-bound and Marlin dequant adds work (c=1 TTFT: 56 ms FP16 vs 61–65 ms
   quantized). At c=64 under closed loop, 2× faster decode turns requests over 2× faster
@@ -344,7 +344,7 @@ grid over `max-num-seqs` ∈ {32, 64, 128, 256} × c ∈ {64, 128, 160}:
 ![grid TTFT p99](figures/grid_ttft_p99_vs_c.png)
 ![grid TPOT](figures/grid_tpot_vs_c.png)
 
-- **Throughput saturates by mns ≈ 128** (the compute wall N*≈60 on the 4-bit base is
+- **Throughput saturates by mns ≈ 128** (the compute wall N*≈48 on the 4-bit base is
   already passed); 32 caps the batch hard (−17%), 128 and 256 are statistically
   identical.
 - **The knob only decides *where* excess load waits.** Small cap: requests queue outside
