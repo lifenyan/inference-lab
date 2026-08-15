@@ -25,6 +25,9 @@ committed. Total GPU spend for the entire evidence base: **$4.72**.
    hit rates equal the share (28%/86%/0% across shapes) and TTFT p99 follows
    (−22%/−82%/0%). On RAG-shaped traffic it also multiplies effective KV capacity ~3.9×
    and turns the most expensive workload into the cheapest ($0.173→$0.062 per 1M).
+   (The 3.9× is total ÷ *unique* tokens per sequence, 2,008 ÷ ~508 — the shared prefix
+   is stored once across all sequences, moving the preemption wall ~145 → ~560
+   concurrent; report §6.1.)
 3. **The KV preemption wall sits exactly at pool ÷ unique-tokens-per-sequence** (0
    preemptions at 0.88× the computed wall, 37 at 1.10×), and crossing it is strictly bad:
    throughput falls and p99 blows up (57→92 s). Capacity-plan long-context services in
