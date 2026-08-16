@@ -56,6 +56,10 @@ see the baseline writeup).
 ![throughput overlay](../experiments/quant-overlay/overlay_throughput_vs_concurrency.png)
 ![TPOT overlay](../experiments/quant-overlay/overlay_tpot_p50_vs_concurrency.png)
 
+*(The plotted throughput curves are the window-average rows of the table above — at
+c=64 they sit ~30% below the steady-state row because of the drain artifact¹, which is
+symmetric across variants; shapes and ratios are unaffected.)*
+
 ## The trade-off table
 
 | | FP16 (control) | AWQ 4-bit | GPTQ 4-bit | FP8 W8A8 |

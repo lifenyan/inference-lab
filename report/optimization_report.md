@@ -194,6 +194,13 @@ compute on Ada (Cutlass kernel, verified in the serve log), not a weight-only fa
 ![throughput overlay](figures/quant_throughput_vs_concurrency.png)
 ![TPOT overlay](figures/quant_tpot_p50_vs_concurrency.png)
 
+*Reading the throughput plot against the table: the curves show the **window average**
+(as the y-axis states) — the direct per-level measurement, which the closed-loop drain
+artifact depresses ~30% at c=64 (§2.4, convention 1; window values there: FP16 1,983 /
+FP8 2,586 / AWQ 3,301 / GPTQ 3,311 tok/s). The table's c=64 rows quote **steady-state**,
+which corrects for the drain. The artifact is symmetric across all four variants, so the
+plot's shapes, ratios, and ordering are unaffected.*
+
 ### 4.1 Why the numbers look like this
 
 - **Batch-1 decode is a bytes-streaming problem.** 4-bit shrinks bytes read per token
